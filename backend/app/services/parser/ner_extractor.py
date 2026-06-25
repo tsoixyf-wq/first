@@ -280,10 +280,38 @@ class NERExtractor:
         return sorted(found_skills)
 
     async def _extract_with_gliner(self, text: str) -> dict[str, Any] | None:
-        """GLiNER is disabled — LLM extraction covers the same use cases.
-        To re-enable: install gliner and remove this early return."""
-        logger.debug("GLiNER skipped (disabled for fast startup)")
-        return None
+        """GLiNER zero-shot NER — controlled by ENABLE_GLINER setting.
+
+        Set ENABLE_GLINER=true in .env to enable. Defaults to off because:
+        1. LLM extraction covers the same entity types with better accuracy
+        2. GLiNER adds 300-500 MB of model download on first run
+        3. Startup is ~2-5s slower with GLiNER loaded
+        """
+        from app.core.config import get_settings
+        if not get_settings().ENABLE_GLINER:
+            logger.debug("GLiNER skipped (ENABLE_GLINER=false)")
+            return None
+
+        try:
+            from gliner import GLiNER as GLiNERModel
+
+            if self._gliner is None:
+                self._gliner = GLiNERModel.from_pretrained("urchade/gliner_medium-v2.1")
+                logger.info("GLiNER model loaded")
+
+            entities = self._gliner.predict_entities(text, labels=["person", "organization", "location", "date"])
+            result: dict[str, list] = {}
+            for ent in entities:
+                key = {"person": "names", "organization": "companies", "location": "locations", "date": "dates"}.get(ent["label"], ent["label"] + "s")
+                result.setdefault(key, []).append(ent["text"])
+            return result
+
+        except ImportError:
+            logger.warning("GLiNER package not installed — run: pip install gliner")
+            return None
+        except Exception as e:
+            logger.warning("GLiNER extraction failed: %s", e)
+            return None
 
     def _extract_with_spacy(self, text: str, lang: str = "zh") -> dict[str, Any] | None:
         """Use spaCy for entity recognition."""

@@ -1,0 +1,64 @@
+孙八
+
+基本信息
+------
+邮箱: sunba@gmail.com
+电话: 13400134000
+城市: 成都
+工作年限: 3年
+
+教育背景
+------
+电子科技大学 | 软件工程 | 硕士 | 2021.09 - 2023.06
+四川大学 | 计算机科学与技术 | 本科 | 2017.09 - 2021.06 | GPA: 3.9/4.0
+
+专业技能
+------
+- Android: Kotlin (精通), Java (熟练), Jetpack Compose, MVVM, Coroutines, Flow
+- iOS: Swift (熟练), SwiftUI, UIKit, Combine
+- 跨平台: Flutter (精通), Dart, Provider/Riverpod, Flutter Web
+- 性能优化: 启动优化, 内存泄漏检测, 卡顿治理, 包体积优化, LeakCanary
+- 架构设计: 组件化/模块化, 插件化, 路由设计 (ARouter)
+- 网络: Retrofit/OkHttp, Alamofire, gRPC, WebSocket
+- 数据库: Room, Realm, SQLite, MMKV
+- CI/CD: Fastlane, Jenkins, 自动化测试, 应用商店发布
+- 音视频: FFmpeg, OpenGL ES, MediaCodec, AVPlayer
+- 其他: Git, Linux, Python, Firebase, 微信小程序
+
+工作经历
+------
+美团 | Android 开发工程师 | 2023.07 - 至今
+- 负责美团外卖商家端 Android App 核心功能开发
+- 主导 App 启动性能优化，冷启动时间从 2.8s 降至 0.9s
+- 设计并实现图片加载组件，支持 WebP/AVIF 格式，内存占用降低 35%
+- 引入 Jetpack Compose 重构订单管理模块，代码量减少 40%
+- 负责 App 稳定性治理，Crash 率从 0.8% 降至 0.05%
+
+字节跳动 | 移动端开发实习生 | 2022.06 - 2022.09
+- 参与抖音极速版 Flutter 模块开发，负责视频播放器相关的 UI 实现
+- 使用 Flutter 开发 AB Test 实验配置管理页面
+- 编写单元测试和 Widget 测试，模块测试覆盖率达到 80%
+
+项目经历
+------
+PixelShare - 图片社交 App | 个人项目 | 2022.01 - 2022.05
+- 基于 Flutter 的跨平台图片社交应用，支持 iOS/Android
+- 使用 Firebase 实现用户认证、实时数据库和推送通知
+- 自研图片滤镜引擎 (基于 OpenGL ES)，支持 20+ 种滤镜效果
+- Google Play 下载量 5000+
+
+智能考勤系统 (校园小程序) | 课程项目 | 2021.09 - 2021.12
+- 微信小程序 + Python Flask 后端
+- 基于人脸识别 + 地理位置校验的智能签到
+- 全校 2000+ 学生使用，日均打卡 5000+ 次
+
+证书
+------
+- CET-6 (560)
+- 软件设计师（中级）
+- Google Play Academy - Store Listing Certificate
+
+语言能力
+------
+- 中文: 母语
+- 英语: 流利 (能流畅阅读英文技术文档，能用英文进行技术交流)

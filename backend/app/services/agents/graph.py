@@ -26,9 +26,15 @@ logger = structlog.get_logger(__name__)
 async def parse_all_agent(state: MatchingState) -> MatchingState:
     """
     Run resume parsing and JD analysis in parallel.
-    These two tasks are independent — resume_parse only reads resume_text,
-    jd_analyze only reads jd_text — so they can safely run concurrently.
+
+    If *resume_parsed* and *jd_parsed* are already populated (e.g. by the
+    API layer which loaded them from the database), this step is a no-op.
     """
+    # --- Shortcut: use pre-parsed data when available ---
+    if state.get("resume_parsed") is not None and state.get("jd_parsed") is not None:
+        logger.info("Using pre-parsed data — skipping parse stage")
+        return state
+
     logger.info("Parallel parsing started")
 
     async def parse_resume():

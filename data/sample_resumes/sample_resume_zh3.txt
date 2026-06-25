@@ -1,0 +1,62 @@
+王五
+
+基本信息
+------
+邮箱: wangwu@outlook.com
+电话: 13700137000
+城市: 深圳
+工作年限: 5年
+
+教育背景
+------
+华中科技大学 | 数字媒体技术 | 本科 | 2015.09 - 2019.06 | GPA: 3.5/4.0
+
+专业技能
+------
+- JavaScript/TypeScript (精通): React, Vue.js, Next.js, Node.js
+- CSS (精通): Tailwind CSS, Sass/Less, CSS Modules, styled-components
+- 前端工程化: Webpack, Vite, Rollup, Babel, ESLint, Prettier
+- 前端测试: Jest, React Testing Library, Playwright, Cypress
+- 可视化: ECharts, D3.js, AntV, Three.js
+- 移动端: React Native, 微信小程序, 响应式布局
+- 后端基础: Node.js, Express, NestJS, MySQL, Redis
+- DevOps: Docker, Nginx, GitHub Actions, 阿里云
+- 设计工具: Figma, Sketch (能切图并与设计师高效协作)
+
+工作经历
+------
+腾讯 | 高级前端开发工程师 | 2021.03 - 至今
+- 负责腾讯云控制台前端架构设计与核心模块开发
+- 主导前端微前端架构改造，使用 qiankun 将巨石应用拆分为 12 个子应用
+- 搭建组件库 (Ant Design 二次封装)，覆盖 60+ 业务组件，团队 30+ 人使用
+- 优化首屏加载性能，LCP 从 4.2s 降至 1.6s，Lighthouse 评分从 52 提升至 92
+- 引入 Playwright 端到端测试，核心流程覆盖率 85%
+
+字节跳动 | 前端开发工程师 | 2019.07 - 2021.02
+- 负责飞书文档前端开发，参与实时协作编辑器的功能迭代
+- 使用 Slate.js + OT 算法实现多人实时协同编辑
+- 开发富文本编辑器插件系统，支持 20+ 种内容类型
+- 优化大数据量表格渲染，虚拟滚动方案使万行表格渲染时间 < 100ms
+
+项目经历
+------
+低代码表单设计器 | 开源项目 | GitHub: github.com/wangwu/form-builder
+- 基于 React + DnD Kit 的可视化表单搭建工具
+- 支持 JSON Schema 动态生成表单，30+ 种字段类型
+- 插件化设计，社区贡献 15+ 插件
+- GitHub 2.3k Stars
+
+数据可视化大屏 | 腾讯内部项目 | 2022.06 - 2022.12
+- 使用 ECharts + Three.js 构建 3D 数据可视化大屏
+- 实时渲染 10 万+ 数据点，WebWorker 多线程处理
+- 自适应不同分辨率屏幕（4K/8K/拼接屏）
+
+证书
+------
+- 计算机技术与软件专业技术资格（高级）- 系统架构设计师
+- CET-6 (532)
+
+语言能力
+------
+- 中文: 母语
+- 英语: 流利 (能无障碍阅读英文文档，能参加英文技术会议)

@@ -6,7 +6,7 @@ version: "3.9"
 # Usage:
 #   1. Copy .env.example to .env and fill in production values
 #   2. docker-compose -f docker-compose.prod.yml up -d --build
-#   3. docker-compose -f docker-compose.prod.yml exec backend alembic upgrade head
+#   (alembic migration runs automatically before backend starts)
 #
 # Key differences from dev compose:
 #   - No bind mounts (images contain built code)
@@ -138,7 +138,9 @@ services:
     volumes:
       # Mount only data directory for skill taxonomy
       - ./data:/app/data:ro
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4"
     deploy:
       resources:
         limits:

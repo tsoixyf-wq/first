@@ -1,4 +1,4 @@
-"""Matching API endpoints."""
+"""Matching API endpoints — delegates to the LangGraph agent pipeline."""
 
 import time
 import uuid
@@ -15,27 +15,28 @@ from app.models.resume import Resume
 from app.schemas.job import ParsedJDData
 from app.schemas.matching import (
     BatchMatchRequest,
-    BatchMatchResponse,
     DimensionScores,
     MatchRequest,
     MatchResponse,
 )
 from app.schemas.resume import ParsedResumeData
+from app.services.agents.graph import matching_graph
+from app.services.agents.state import MatchingState
 from app.services.matcher.llm_matcher import LLMMatcher
-from app.services.matcher.rule_matcher import RuleMatcher
-from app.services.matcher.semantic_matcher import SemanticMatcher
-from app.services.matcher.tfidf_matcher import TFIDFMatcher
-from app.services.matcher.weighting import compute_weighted_score
 
 router = APIRouter()
 
+
+# ---------------------------------------------------------------------------
+# Single match — unified through LangGraph agent pipeline
+# ---------------------------------------------------------------------------
 
 @router.post("/analyze", response_model=MatchResponse)
 async def match_resume_to_job(
     request: MatchRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    """Run the full matching pipeline for a resume against a job."""
+    """Run the full matching pipeline via the LangGraph agent pipeline."""
     start_time = time.time()
 
     # Load resume
@@ -55,78 +56,50 @@ async def match_resume_to_job(
     resume_data = ParsedResumeData(**resume.parsed_data)
     jd_data = ParsedJDData(**jd.parsed_data)
 
-    # Stage 1: Rule matching
-    rule_matcher = RuleMatcher()
-    rule_result = await rule_matcher.match(resume_data, jd_data)
+    # Build initial state — pre-parsed data skips the parse_all node
+    initial_state: MatchingState = {
+        "resume_text": resume.raw_text,
+        "jd_text": jd.raw_text,
+        "enable_llm": request.enable_llm,
+        "resume_parsed": resume_data,
+        "jd_parsed": jd_data,
+        "rule_result": None,
+        "tfidf_result": None,
+        "semantic_result": None,
+        "llm_result": None,
+        "overall_score": 0.0,
+        "dimension_scores": None,
+        "matched_skills": [],
+        "missing_skills": [],
+        "reasoning": "",
+        "suggestions": [],
+        "is_hard_pass": False,
+        "error": None,
+    }
 
-    if rule_result["is_hard_pass"]:
-        # Extract missing hard-requirement skills from rule check details
-        rule_missing_skills = (
-            rule_result.get("details", {}).get("skills", {}).get("missing", [])
-        )
-        # Also include hard-pass reasons as context for the frontend
-        hard_pass_skill_items = [
-            f"❌ {reason}" for reason in rule_result["hard_pass_reasons"]
-        ] + [f"⚠️ 缺少必备技能: {s}" for s in rule_missing_skills]
+    # Run agent pipeline: parse_all (skip) → match → explain
+    result_state = await matching_graph.ainvoke(initial_state)
 
-        # Create result and return early
-        match_result = MatchResult(
-            resume_id=request.resume_id,
-            job_id=request.job_id,
-            rule_score=rule_result["score"],
-            overall_score=0.0,
-            dimension_scores=DimensionScores().model_dump(),
-            matched_skills=[],
-            missing_skills=hard_pass_skill_items,
-            hard_pass_reasons=rule_result["hard_pass_reasons"],
-            is_hard_pass=True,
-            match_duration_ms=int((time.time() - start_time) * 1000),
-        )
-        db.add(match_result)
-        await db.flush()
-        return _build_match_response(match_result)
+    # Handle errors from the pipeline
+    if result_state.get("error"):
+        raise HTTPException(status_code=500, detail=result_state["error"])
 
-    # Stage 2: TF-IDF
-    tfidf_matcher = TFIDFMatcher()
-    tfidf_result = await tfidf_matcher.match(resume_data, jd_data)
-
-    # Stage 3: Semantic
-    semantic_matcher = SemanticMatcher()
-    semantic_result = await semantic_matcher.match(resume_data, jd_data)
-
-    # Stage 4: LLM (optional)
-    llm_result = None
-    if request.enable_llm:
-        llm_matcher = LLMMatcher()
-        previous = {
-            "rule": rule_result["score"],
-            "tfidf": tfidf_result["score"],
-            "semantic": semantic_result["score"],
-        }
-        llm_result = await llm_matcher.match(resume_data, jd_data, previous)
-
-    # Weighted aggregation — centralized in weighting.py
-    overall, dim_scores, _ = compute_weighted_score(
-        rule_score=rule_result["score"],
-        tfidf_score=tfidf_result["score"],
-        semantic_score=semantic_result["score"],
-        llm_result=llm_result,
-    )
-
-    # Persist result
+    # Persist match result to DB
     match_result = MatchResult(
         resume_id=request.resume_id,
         job_id=request.job_id,
-        rule_score=rule_result["score"],
-        tfidf_score=tfidf_result["score"],
-        semantic_score=semantic_result["score"],
-        llm_score=llm_result["score"] if llm_result else None,
-        overall_score=round(overall, 1),
-        dimension_scores=dim_scores.model_dump(),
-        matched_skills=llm_result.get("matched_skills", []) if llm_result else [],
-        missing_skills=llm_result.get("missing_skills", []) if llm_result else [],
-        llm_reasoning=llm_result.get("reasoning", "") if llm_result else None,
-        suggestions=llm_result.get("suggestions", []) if llm_result else [],
+        rule_score=result_state.get("rule_result", {}).get("score") if result_state.get("rule_result") else None,
+        tfidf_score=result_state.get("tfidf_result", {}).get("score") if result_state.get("tfidf_result") else None,
+        semantic_score=result_state.get("semantic_result", {}).get("score") if result_state.get("semantic_result") else None,
+        llm_score=result_state.get("llm_result", {}).get("score") if result_state.get("llm_result") else None,
+        overall_score=round(result_state.get("overall_score", 0.0), 1),
+        dimension_scores=result_state.get("dimension_scores", DimensionScores()).model_dump(),
+        matched_skills=result_state.get("matched_skills", []),
+        missing_skills=result_state.get("missing_skills", []),
+        llm_reasoning=result_state.get("reasoning"),
+        suggestions=result_state.get("suggestions", []),
+        is_hard_pass=result_state.get("is_hard_pass", False),
+        hard_pass_reasons=result_state.get("rule_result", {}).get("hard_pass_reasons", []),
         match_duration_ms=int((time.time() - start_time) * 1000),
     )
     db.add(match_result)
@@ -134,6 +107,10 @@ async def match_resume_to_job(
 
     return _build_match_response(match_result)
 
+
+# ---------------------------------------------------------------------------
+# Streaming match
+# ---------------------------------------------------------------------------
 
 @router.post("/analyze/stream")
 async def match_resume_stream(
@@ -170,34 +147,42 @@ async def match_resume_stream(
     )
 
 
-@router.post("/analyze/batch", response_model=BatchMatchResponse)
+# ---------------------------------------------------------------------------
+# Batch match — dispatched to Celery
+# ---------------------------------------------------------------------------
+
+@router.post("/analyze/batch")
 async def batch_match(
     request: BatchMatchRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    """Batch match multiple resumes against one job."""
-    matches = []
-    failed = 0
+    """Batch match multiple resumes against one job (async via Celery)."""
+    # Validate that job exists
+    jd_result = await db.execute(
+        select(JobDescription).where(JobDescription.id == request.job_id)
+    )
+    if not jd_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="岗位不存在")
 
-    for resume_id in request.resume_ids:
-        try:
-            single_request = MatchRequest(
-                resume_id=resume_id,
-                job_id=request.job_id,
-                enable_llm=request.enable_llm,
-            )
-            result = await match_resume_to_job(single_request, db)
-            matches.append(result)
-        except Exception:
-            failed += 1
+    from app.tasks.matching_tasks import batch_match_async
 
-    return BatchMatchResponse(
-        matches=matches,
-        total=len(request.resume_ids),
-        completed=len(matches),
-        failed=failed,
+    task = batch_match_async.delay(
+        resume_ids=[str(rid) for rid in request.resume_ids],
+        job_id=str(request.job_id),
+        enable_llm=request.enable_llm,
     )
 
+    return {
+        "task_id": task.id,
+        "status": "processing",
+        "total": len(request.resume_ids),
+        "message": f"批量匹配已提交，共 {len(request.resume_ids)} 份简历。通过 GET /api/v1/tasks/{task.id} 查询进度",
+    }
+
+
+# ---------------------------------------------------------------------------
+# Result queries
+# ---------------------------------------------------------------------------
 
 @router.get("/results/{match_id}", response_model=MatchResponse)
 async def get_match_result(
@@ -233,6 +218,26 @@ async def list_match_results(
 
     return {"items": [_build_match_response(m) for m in matches], "total": len(matches)}
 
+
+@router.delete("/results/{match_id}")
+async def delete_match_result(
+    match_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a match result."""
+    result = await db.execute(select(MatchResult).where(MatchResult.id == match_id))
+    match = result.scalar_one_or_none()
+
+    if not match:
+        raise HTTPException(status_code=404, detail="匹配结果不存在")
+
+    await db.delete(match)
+    return {"detail": "删除成功"}
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
 def _build_match_response(match: MatchResult) -> MatchResponse:
     """Convert ORM model to response schema."""

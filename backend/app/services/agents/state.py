@@ -16,6 +16,7 @@ class MatchingState(TypedDict):
     # Input
     resume_text: str
     jd_text: str
+    enable_llm: bool   # whether to run the LLM stage (cost control)
 
     # Intermediate results
     resume_parsed: ParsedResumeData | None
@@ -34,6 +35,7 @@ class MatchingState(TypedDict):
     missing_skills: list[str]
     reasoning: str
     suggestions: list[str]
+    is_hard_pass: bool
 
     # Flow control
     error: str | None

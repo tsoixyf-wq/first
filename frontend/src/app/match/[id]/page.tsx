@@ -13,6 +13,8 @@ import {
   Typography,
   Divider,
   Button,
+  Space,
+  message,
 } from "antd";
 import {
   CheckCircleOutlined,
@@ -20,9 +22,9 @@ import {
   BulbOutlined,
   ArrowLeftOutlined,
 } from "@ant-design/icons";
-import { ChartCard, ScoreTag, ErrorState, PageHeader } from "@/components";
+import { ChartCard, ScoreTag, ConfirmButton, ErrorState, PageHeader } from "@/components";
 import useApi from "@/hooks/useApi";
-import { getMatchResult } from "@/lib/api";
+import { getMatchResult, deleteMatchResult } from "@/lib/api";
 import type { MatchResult } from "@/lib/types";
 
 const { Title, Paragraph, Text } = Typography;
@@ -40,6 +42,17 @@ export default function MatchDetailPage() {
   }
 
   if (!match && !loading) return null;
+
+  async function handleDelete() {
+    if (!match) return;
+    try {
+      await deleteMatchResult(match.id);
+      message.success("删除成功");
+      router.push("/reports");
+    } catch (e: any) {
+      message.error(`删除失败: ${e?.response?.data?.detail || e.message}`);
+    }
+  }
 
   const radarOption = {
     radar: {
@@ -98,19 +111,30 @@ export default function MatchDetailPage() {
       <PageHeader
         title="匹配详情"
         extra={
-          <Button
-            icon={<ArrowLeftOutlined />}
-            onClick={() => router.push("/reports")}
-          >
-            返回列表
-          </Button>
+          <Space>
+            <Button
+              icon={<ArrowLeftOutlined />}
+              onClick={() => router.push("/reports")}
+            >
+              返回列表
+            </Button>
+            <ConfirmButton
+              type="default"
+              danger
+              title="确认删除"
+              content="删除后无法恢复，确定要删除这条匹配报告吗？"
+              onConfirm={handleDelete}
+            >
+              删除
+            </ConfirmButton>
+          </Space>
         }
       />
 
       {match?.is_hard_pass && (
         <Alert
           message="硬性条件不满足"
-          description={match.hard_pass_reasons.join("；")}
+          description="未通过"
           type="error"
           showIcon
           style={{ marginBottom: 24 }}
@@ -232,17 +256,7 @@ export default function MatchDetailPage() {
             }
           >
             {match?.is_hard_pass ? (
-              <div>
-                {match.hard_pass_reasons.map((reason, i) => (
-                  <Tag
-                    key={i}
-                    color="red"
-                    style={{ margin: 4, whiteSpace: "normal", maxWidth: "100%" }}
-                  >
-                    {reason}
-                  </Tag>
-                ))}
-              </div>
+              <Tag color="red">未通过</Tag>
             ) : (match?.missing_skills?.length ?? 0) > 0 ? (
               <div>
                 {match?.missing_skills.map((s, i) => (

@@ -1,5 +1,6 @@
 """Job Description management API endpoints."""
 
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -16,6 +17,7 @@ from app.schemas.job import (
 )
 from app.services.parser.llm_extractor import LLMExtractor
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -51,6 +53,17 @@ async def create_job(
 
         jd.parsed_data = parsed.model_dump()
         jd.parse_status = "completed"
+
+        # Create embedding for similarity search
+        try:
+            from app.services.embedding.embedding_service import embed_jd
+            embedding_id = await embed_jd(
+                str(jd.id), request.raw_text,
+                metadata={"title": jd.title, "department": jd.department or ""},
+            )
+            jd.embedding_id = embedding_id
+        except Exception as emb_err:
+            logger.warning("JD embedding failed (non-critical): %s", emb_err)
 
     except Exception as e:
         jd.parse_status = "failed"
@@ -224,6 +237,13 @@ async def delete_job(
 
     if not jd:
         raise HTTPException(status_code=404, detail="岗位不存在")
+
+    # Delete embedding
+    try:
+        from app.services.embedding.embedding_service import delete_jd_embedding
+        await delete_jd_embedding(str(job_id))
+    except Exception:
+        pass
 
     await db.delete(jd)
     return {"detail": "删除成功"}

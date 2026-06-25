@@ -105,6 +105,10 @@ export async function listMatchResults(params?: {
   return data;
 }
 
+export async function deleteMatchResult(id: string): Promise<void> {
+  await api.delete(`/matching/results/${id}`);
+}
+
 // --- Dashboard ---
 
 export async function getDashboard(): Promise<DashboardData> {

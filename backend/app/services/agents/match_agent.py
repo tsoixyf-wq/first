@@ -27,6 +27,8 @@ async def match_agent(state: MatchingState) -> MatchingState:
         state["error"] = "简历或岗位解析结果为空，无法匹配"
         return state
 
+    enable_llm = state.get("enable_llm", True)
+
     try:
         # Stage 1: Rule-based hard filter
         rule_matcher = RuleMatcher()
@@ -50,6 +52,7 @@ async def match_agent(state: MatchingState) -> MatchingState:
             state["missing_skills"] = hard_pass_skill_items
             state["reasoning"] = "不满足硬性要求:\n" + "\n".join(rule_result["hard_pass_reasons"])
             state["suggestions"] = []
+            state["is_hard_pass"] = True
             return state
 
         # Stage 2: TF-IDF + Fuzzy matching
@@ -64,16 +67,21 @@ async def match_agent(state: MatchingState) -> MatchingState:
         state["semantic_result"] = semantic_result
         logger.info("Stage 3 (Semantic) completed", score=semantic_result["score"])
 
-        # Stage 4: LLM deep reasoning
-        previous_scores = {
-            "rule": rule_result["score"],
-            "tfidf": tfidf_result["score"],
-            "semantic": semantic_result["score"],
-        }
-        llm_matcher = LLMMatcher()
-        llm_result = await llm_matcher.match(resume, jd, previous_scores)
-        state["llm_result"] = llm_result
-        logger.info("Stage 4 (LLM) completed", score=llm_result["score"])
+        # Stage 4: LLM deep reasoning (optional)
+        llm_result = None
+        if enable_llm:
+            previous_scores = {
+                "rule": rule_result["score"],
+                "tfidf": tfidf_result["score"],
+                "semantic": semantic_result["score"],
+            }
+            llm_matcher = LLMMatcher()
+            llm_result = await llm_matcher.match(resume, jd, previous_scores)
+            state["llm_result"] = llm_result
+            logger.info("Stage 4 (LLM) completed", score=llm_result["score"])
+        else:
+            state["llm_result"] = None
+            logger.info("Stage 4 (LLM) skipped (enable_llm=False)")
 
         # Weighted aggregation — centralized in weighting.py
         overall, dim_scores, _ = compute_weighted_score(
@@ -85,10 +93,11 @@ async def match_agent(state: MatchingState) -> MatchingState:
 
         state["overall_score"] = overall
         state["dimension_scores"] = dim_scores
-        state["matched_skills"] = llm_result.get("matched_skills", [])
-        state["missing_skills"] = llm_result.get("missing_skills", [])
-        state["reasoning"] = llm_result.get("reasoning", "")
-        state["suggestions"] = llm_result.get("suggestions", [])
+        state["matched_skills"] = llm_result.get("matched_skills", []) if llm_result else []
+        state["missing_skills"] = llm_result.get("missing_skills", []) if llm_result else []
+        state["reasoning"] = llm_result.get("reasoning", "") if llm_result else ""
+        state["suggestions"] = llm_result.get("suggestions", []) if llm_result else []
+        state["is_hard_pass"] = False
 
         logger.info("Matching completed", overall_score=overall)
 

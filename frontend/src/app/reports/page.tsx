@@ -14,10 +14,19 @@ import {
   Switch,
   Space,
 } from "antd";
-import { EyeOutlined, ThunderboltOutlined } from "@ant-design/icons";
-import { listResumes, listJobs, matchResume, listMatchResults } from "@/lib/api";
+import {
+  EyeOutlined,
+  ThunderboltOutlined,
+} from "@ant-design/icons";
+import {
+  listResumes,
+  listJobs,
+  matchResume,
+  listMatchResults,
+  deleteMatchResult,
+} from "@/lib/api";
 import type { MatchResult, ResumeItem, JDItem } from "@/lib/types";
-import { PageHeader, ScoreTag, EmptyState, ErrorState } from "@/components";
+import { PageHeader, ScoreTag, ConfirmButton, EmptyState, ErrorState } from "@/components";
 import useApi from "@/hooks/useApi";
 
 export default function ReportsPage() {
@@ -79,6 +88,20 @@ export default function ReportsPage() {
     setMatchOpen(true);
   }
 
+  async function handleDelete(id: string) {
+    try {
+      await deleteMatchResult(id);
+      message.success("删除成功");
+      refresh();
+    } catch (e: any) {
+      message.error(`删除失败: ${e?.response?.data?.detail || e.message}`);
+    }
+  }
+
+  function formatDate(iso: string) {
+    return iso?.replace("T", " ")?.slice(0, 19);
+  }
+
   const columns = [
     {
       title: "简历",
@@ -111,38 +134,39 @@ export default function ReportsPage() {
       title: "硬性条件",
       dataIndex: "is_hard_pass",
       key: "hard",
-      width: 140,
-      render: (v: boolean, record: MatchResult) =>
-        v ? (
-          <Tag color="red">
-            {record.hard_pass_reasons?.[0]?.slice(0, 15) || "不满足"}
-            {record.hard_pass_reasons.length > 1
-              ? ` +${record.hard_pass_reasons.length - 1}`
-              : ""}
-          </Tag>
-        ) : (
-          <Tag color="green">通过</Tag>
-        ),
+      width: 100,
+      render: (v: boolean) =>
+        v ? <Tag color="red">未通过</Tag> : <Tag color="green">通过</Tag>,
     },
     {
       title: "匹配时间",
       dataIndex: "created_at",
       key: "date",
-      width: 140,
-      render: (d: string) => d?.slice(0, 16),
+      width: 160,
+      render: (d: string) => formatDate(d),
     },
     {
       title: "操作",
       key: "actions",
-      width: 80,
+      width: 160,
       render: (_: unknown, record: MatchResult) => (
-        <Button
-          type="link"
-          icon={<EyeOutlined />}
-          onClick={() => router.push(`/match/${record.id}`)}
-        >
-          详情
-        </Button>
+        <Space>
+          <Button
+            type="link"
+            icon={<EyeOutlined />}
+            onClick={() => router.push(`/match/${record.id}`)}
+          >
+            详情
+          </Button>
+          <ConfirmButton
+            type="link"
+            title="确认删除"
+            content="删除后无法恢复，确定要删除这条匹配报告吗？"
+            onConfirm={() => handleDelete(record.id)}
+          >
+            删除
+          </ConfirmButton>
+        </Space>
       ),
     },
   ];

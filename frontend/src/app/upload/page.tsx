@@ -44,7 +44,12 @@ export default function UploadPage() {
     loading,
     error,
     refresh,
-  } = useApi<ResumeItem[]>(() => listResumes({ page_size: 50 }).then((d) => d.items));
+  } = useApi<ResumeItem[]>(() =>
+    listResumes({ page_size: 50 }).then((d) =>
+      // 过滤掉失败记录——解析失败时后端已通过弹窗提示，列表中不需要展示
+      d.items.filter((item) => item.parse_status !== "failed")
+    )
+  );
 
   const [detail, setDetail] = useState<ResumeDetail | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);

@@ -1,1 +1,1 @@
-"""Celery background task definitions for batch processing."""
+"""Async task package."""

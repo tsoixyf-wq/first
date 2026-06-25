@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = True
     SECRET_KEY: str = "change-this-in-production"
+    API_KEY: str = ""   # Leave empty to skip auth (dev mode). Set in production.
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
 
     @model_validator(mode="after")
@@ -80,6 +81,9 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL: str = "BAAI/bge-large-zh-v1.5"
     EMBEDDING_DEVICE: str = "cpu"
     HF_ENDPOINT: str = "https://hf-mirror.com"
+
+    # --- NER ---
+    ENABLE_GLINER: bool = False   # Enable GLiNER zero-shot NER (needs gliner package)
 
     # --- File Upload ---
     MAX_UPLOAD_SIZE_MB: int = 10
